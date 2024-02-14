@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, ForeignKey
 from sqlalchemy.orm import declarative_base
 from db import engine
 
@@ -24,7 +24,7 @@ class Enrollments(Base):
     id = Column(Integer, primary_key=True)
     student_id = Column(ForeignKey("students.id"))
     course_id = Column(ForeignKey("courses.id"))
-    enrollment_date = Column(String)
+    enrollment_date = Column(Date)
 
 
 Base.metadata.create_all(engine)
