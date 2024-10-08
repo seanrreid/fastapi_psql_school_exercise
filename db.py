@@ -1,17 +1,14 @@
-from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import create_engine, SQLModel, Session
+
+DATABASE_URL = 'postgresql://postgres.swepwqrdkebfdvzcaezn:DJ7$if9w6jd2@aws-0-us-west-1.pooler.supabase.com:6543/postgres'
+
+engine = create_engine(DATABASE_URL, echo=True)
 
 
-url = URL.create(
-    drivername="postgresql",
-    username="postgres",
-    password="",
-    host="localhost",
-    database="sean_u",
-    port=5432
-)
+# def init_db():
+#     SQLModel.metadata.create_all(engine)
 
-engine = create_engine(url)
-Session = sessionmaker(bind=engine)
-session = Session()
+
+def get_session():
+    with Session(engine) as session:
+        yield session

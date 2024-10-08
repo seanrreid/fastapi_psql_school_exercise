@@ -1,14 +1,16 @@
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+import uvicorn
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import date
+from sqlmodel import Session, select
 
 # Import our tools
 # This is the database connection file
-from db import session
+from db import get_session
 
 # These are our models
-from models import Students, Enrollments, Courses
+from models.students import Students
+from models.enrollments import Enrollments
+from models.courses import Courses
 
 app = FastAPI()
 
@@ -38,19 +40,19 @@ def home():
 
 
 @app.get('/courses')
-def get_courses():
+def get_courses(session: Session = Depends(get_session), ):
     courses = session.query(Courses)
     return courses.all()
 
 
 @app.get('/students')
-def get_students():
+def get_students(session: Session = Depends(get_session), ):
     students = session.query(Students)
     return students.all()
 
 
 @app.get('/enrollments')
-def get_enrollments():
+def get_enrollments(session: Session = Depends(get_session), ):
     enrollments = session.query(Enrollments, Students, Courses).join(
         Students, Students.id == Enrollments.student_id).join(Courses, Courses.id == Enrollments.course_id)
 
@@ -86,7 +88,7 @@ def get_enrollments():
 
 
 @app.post('/students/add')
-async def add_student(name: str):
+async def add_student(name: str, session: Session = Depends(get_session)):
     student = Students(name=name)
     session.add(student)
     session.commit()
@@ -94,7 +96,7 @@ async def add_student(name: str):
 
 
 @app.post('/courses/add')
-async def add_course(name: str):
+async def add_course(name: str, session: Session = Depends(get_session)):
     course = Courses(name=name)
     session.add(course)
     session.commit()
@@ -102,15 +104,16 @@ async def add_course(name: str):
 
 
 @app.post('/enrollments/add')
-async def add_enrollment(student_id: int, course_id: int, enrollment_date: date):
-    enrollment = Enrollments(student_id=student_id, course_id=course_id, enrollment_date=enrollment_date)
+async def add_enrollment(student_id: int, course_id: int, enrollment_date: date, session: Session = Depends(get_session)):
+    enrollment = Enrollments(
+        student_id=student_id, course_id=course_id, enrollment_date=enrollment_date)
     session.add(enrollment)
     session.commit()
     return {"message": "Enrollment Added"}
 
 
 @app.put('/students/update')
-async def add_student(id: int, name: str):
+async def add_student(id: int, name: str, session: Session = Depends(get_session)):
     student = session.query(Student).filter(Student.id == id).first()
     if student is not None:
         student.name = name
@@ -122,7 +125,7 @@ async def add_student(id: int, name: str):
 
 
 @app.put('/courses/update')
-async def add_course(id: int, name: str):
+async def add_course(id: int, name: str, session: Session = Depends(get_session)):
     course = session.query(Courses).filter(Courses.id == id).first()
     if course is not None:
         course.name = name
@@ -131,3 +134,7 @@ async def add_course(id: int, name: str):
         return {"Course Updated": course.name}
     else:
         return {"message": "Course ID not found"}
+
+
+if __name__ == '__main__':
+    uvicorn.run('main:app', host='localhost', port=8000, reload=True)
