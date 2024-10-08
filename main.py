@@ -2,15 +2,16 @@ import uvicorn
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
+from datetime import date
 
 # Import our tools
 # This is the database connection file
 from db import get_session
 
 # These are our models
-from models.students import Students
-from models.enrollments import Enrollments
-from models.courses import Courses
+from models.students import Student
+from models.enrollments import Enrollment
+from models.courses import Course
 
 app = FastAPI()
 
@@ -40,72 +41,58 @@ def home():
 
 
 @app.get('/courses')
-def get_courses(session: Session = Depends(get_session), ):
-    courses = session.query(Courses)
-    return courses.all()
+def get_courses(session: Session = Depends(get_session)):
+    statement = select(Course)
+    results = session.exec(statement)
+    return results.all()
 
 
 @app.get('/students')
 def get_students(session: Session = Depends(get_session), ):
-    students = session.query(Students)
-    return students.all()
+    statement = select(Student)
+    results = session.exec(statement)
+    return results.all()
 
 
 @app.get('/enrollments')
 def get_enrollments(session: Session = Depends(get_session), ):
-    enrollments = session.query(Enrollments, Students, Courses).join(
-        Students, Students.id == Enrollments.student_id).join(Courses, Courses.id == Enrollments.course_id)
-
-    # We can't just return the all() value...
-    # ...all() will return a series of tuples, containing a instance of each class.
-    # But, we can assign it to a variable...
-    all_enrollments = enrollments.all()
-
-    # ...then we can use a for loop to make a list
-    # conventional syntax
-    enrollments_list = []
-    for enrollment in all_enrollments:
-        enrollment_dict = {
-            "enrollment_id": enrollment.Enrollments.id,
-            "student_name": enrollment.Students.name,
-            "course_name": enrollment.Courses.name,
+    statement = (
+        select(Enrollment, Student, Course)
+        .join(Student, Student.id == Enrollment.student_id)
+        .join(Course, Course.id == Enrollment.course_id)
+    )
+    results = session.exec(statement).all()
+    enrollments_list = [
+        {
+            "enrollment_id": enrollment.id,
+            "student": student.student_name,
+            "course": course.course_name,
         }
-        enrollments_list.append(enrollment_dict)
+        for enrollment, student, course in results
+    ]
 
-    # alternative method, using list comprehension syntax
-    # enrollments_list = [
-    #     {
-    #         "enrollment_id": enrollment.Enrollments.id,
-    #         "student_name": enrollment.Students.name,
-    #         "course_name": enrollment.Courses.name,
-    #     }
-    #     for enrollment in enrollments
-    # ]
-
-    # When we get back that list...
-    # ...we need to import the proper response class to be returned
-    return JSONResponse(content={"enrollments": enrollments_list})
+    return enrollments_list
 
 
 @app.post('/students/add')
 async def add_student(name: str, session: Session = Depends(get_session)):
-    student = Students(name=name)
+    student = Student(student_name=name)
     session.add(student)
     session.commit()
-    return {"Student Added": student.name}
+    return {"Student Added": student.student_name}
 
 
 @app.post('/courses/add')
 async def add_course(name: str, session: Session = Depends(get_session)):
-    course = Courses(name=name)
+    course = Course(course_name=name)
     session.add(course)
     session.commit()
-    return {"Course Added": course.name}
+    return {"Course Added": course.course_name}
 
 
 @app.post('/enrollments/add')
 async def add_enrollment(student_id: int, course_id: int, enrollment_date: date, session: Session = Depends(get_session)):
-    enrollment = Enrollments(
+    enrollment = Enrollment(
         student_id=student_id, course_id=course_id, enrollment_date=enrollment_date)
     session.add(enrollment)
     session.commit()
@@ -114,24 +101,28 @@ async def add_enrollment(student_id: int, course_id: int, enrollment_date: date,
 
 @app.put('/students/update')
 async def add_student(id: int, name: str, session: Session = Depends(get_session)):
-    student = session.query(Student).filter(Student.id == id).first()
+    statement = select(Student).where(Student.id == id)
+    results = session.exec(statement)
+    student = results.one()
     if student is not None:
-        student.name = name
+        student.student_name = name
         session.add(student)
         session.commit()
-        return {"Student Updated": student.name}
+        return {"Student Updated": student.student_name}
     else:
         return {"message": "User ID not found"}
 
 
 @app.put('/courses/update')
 async def add_course(id: int, name: str, session: Session = Depends(get_session)):
-    course = session.query(Courses).filter(Courses.id == id).first()
+    statement = select(Course).where(Course.id == id)
+    results = session.exec(statement)
+    course = results.one()
     if course is not None:
-        course.name = name
+        course.course_name = name
         session.add(course)
         session.commit()
-        return {"Course Updated": course.name}
+        return {"Course Updated": course.course_name}
     else:
         return {"message": "Course ID not found"}
 

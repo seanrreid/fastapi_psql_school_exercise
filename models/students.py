@@ -1,10 +1,10 @@
 from .base import Base
 
 
-class Students(Base, table=True):
+class Student(Base, table=True):
     __tablename__ = "students"
 
-    name: str
+    student_name: str
 
     def __repr__(self):
-        return f"<Student {self.name!r}>"
+        return f"<Student {self.student_name!r}>"
